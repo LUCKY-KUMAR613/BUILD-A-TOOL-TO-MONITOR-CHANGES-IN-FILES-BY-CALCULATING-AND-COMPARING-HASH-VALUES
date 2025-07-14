@@ -1,0 +1,60 @@
+import hashlib
+import sys
+import os
+
+HASH_FILE = 'hashes.txt'
+
+def calculate_sha256(filepath):
+    sha256 = hashlib.sha256()
+    try:
+        with open(filepath, 'rb') as f:
+            while chunk := f.read(4096):
+                sha256.update(chunk)
+        return sha256.hexdigest()
+    except FileNotFoundError:
+        print(f"[!] File not found: {filepath}")
+        sys.exit(1)
+
+def store_hash(filepath, filehash):
+    with open(HASH_FILE, 'a') as f:
+        f.write(f"{filepath}|{filehash}\n")
+    print(f"[+] Stored hash for {filepath}")
+
+def load_stored_hash(filepath):
+    if not os.path.exists(HASH_FILE):
+        return None
+    with open(HASH_FILE, 'r') as f:
+        for line in f:
+            stored_file, stored_hash = line.strip().split('|')
+            if stored_file == filepath:
+                return stored_hash
+    return None
+
+def main():
+    if len(sys.argv) != 3:
+        print("Usage:")
+        print("  python file_integrity_monitor.py store <filepath>")
+        print("  python file_integrity_monitor.py check <filepath>")
+        sys.exit(1)
+
+    mode, filepath = sys.argv[1], sys.argv[2]
+    current_hash = calculate_sha256(filepath)
+
+    if mode == "store":
+        store_hash(filepath, current_hash)
+
+    elif mode == "check":
+        stored_hash = load_stored_hash(filepath)
+        if stored_hash is None:
+            print(f"[!] No stored hash found for {filepath}. Please store first.")
+            sys.exit(1)
+        if stored_hash == current_hash:
+            print(f"[OK] File is unchanged: {filepath}")
+        else:
+            print(f"[ALERT] File has been modified: {filepath}")
+    else:
+        print(f"[!] Unknown mode: {mode}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
